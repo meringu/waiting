@@ -34,27 +34,27 @@ Waiting.wait do |waiter|
   waiter.done if something
 end
 
-# You can also specify the max_attempts and interval this way
+# Specify the max_attempts and interval for each instance of the Waiting
 Waiting.wait(interval: interval, max_attempts: max_attempts) do |waiter|
   waiter.done if something
 end
 
-# You can do exponential backoff
-# for example, exp_base of 2 and an interval of 1 second,
-# will wait for: 1,2,4,8...
-Waiting.wait(exp_base: 2) do |waiter|
+# Waiting can do exponential backoff
+Waiting.default_exp_base = exp_base # defaults to 1, for a constant wait interval
+Waiting.default_max_interval = max_interval # defaults to unbounded
+
+# Will wait for: 2,4,8,8...
+Waiting.wait(interval: 2, exp_base: 2, max_interval: 8) do |waiter|
   waiter.done if something
 end
 
-# or specify it as a default
-Waiting.default_exp_base = exp_base # exponential backoff base, defaults to 1
-
-# will log options, and give progress updates if you like  
+# To get the parameters of the wait
 Waiting.wait do |waiter|
   puts waiter.attempts
   puts waiter.exp_base
   puts waiter.interval
   puts waiter.max_attempts
+  puts waiter.max_interval
 end
 ```
 

@@ -70,14 +70,33 @@ describe Waiting do
           expect(subject).to receive(:sleep).with(1)
           expect(subject).to receive(:sleep).with(2)
           expect(subject).to receive(:sleep).with(4)
-          expect(subject).to receive(:sleep).with(8)
         end
 
-        it 'waits' do
-          attempt = 0
-          subject.wait(exp_base: 2, max_attempts: attempts) do |w|
-            attempt += 1
-            w.done if attempt >= attempts
+        context 'when setting a max_interval' do
+          before do
+            expect(subject).to receive(:sleep).with(5)
+          end
+
+          it 'waits' do
+            attempt = 0
+            subject.wait(max_interval: 5, exp_base: 2, max_attempts: attempts) do |w|
+              attempt += 1
+              w.done if attempt >= attempts
+            end
+          end
+        end
+
+        context 'with no max interval' do
+          before do
+            expect(subject).to receive(:sleep).with(8)
+          end
+
+          it 'waits' do
+            attempt = 0
+            subject.wait(exp_base: 2, max_attempts: attempts) do |w|
+              attempt += 1
+              w.done if attempt >= attempts
+            end
           end
         end
       end

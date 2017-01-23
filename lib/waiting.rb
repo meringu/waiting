@@ -39,6 +39,18 @@ module Waiting
     @@default_max_attempts = max_attempts
   end
 
+  # get the default max interval
+  # @return [Fixnum] the default max interval
+  def self.default_max_interval
+    @@default_max_interval ||= nil
+  end
+
+  # set the default max interval
+  # @param [Fixnum] default max interval
+  def self.default_max_interval=(cap)
+    @@default_max_interval = cap
+  end
+
   # wait for something, call #ok on the waiter to signal the wait is over
   # @param [Hash] opts the options to wait with.
   # @option opts [Fixnum] :interval polling interval in seconds for checking
@@ -47,6 +59,7 @@ module Waiting
     interval = opts.fetch(:interval) { default_interval }
     exp_base = opts.fetch(:exp_base) { default_exp_base }
     max_attempts = opts.fetch(:max_attempts) { default_max_attempts }
+    max_interval = opts.fetch(:max_interval) { default_max_interval }
 
     waiter = Waiter.new
 
@@ -61,10 +74,17 @@ module Waiting
       waiter.exp_base = exp_base
       waiter.interval = interval
       waiter.max_attempts = max_attempts
+      waiter.max_interval = max_interval
 
       yield(waiter)
       break if waiter.done?
-      sleep exp_base ** attempts * interval
+
+      time = exp_base ** attempts * interval
+      unless max_interval.nil?
+        time = [time, max_interval].min
+      end
+
+      sleep time
       attempts += 1
     end
   end
