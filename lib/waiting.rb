@@ -1,92 +1,103 @@
-require 'waiting/timed_out_error'
 require 'waiting/waiter'
-require 'waiting/version'
 
-module Waiting
-  # get the default wait interval
-  # @return [Fixnum] the interval in seconds
-  def self.default_interval
-    @@default_interval ||= 5
+# Waits for things so you don't have to
+#
+class Waiting
+  # @param interval [Numeric] Polling interval in seconds.
+  # @param max_attempts [Numeric] Number of attempts before timing out.
+  # @param exp_base [Numeric] Increases the interval by the power of attempts.
+  # @param max_interval [Numeric] Interval limit for exponential backoff.
+  #
+  # @yield Block to check if the wait is over.
+  # @yieldparam waiter [Waiting::Waiter] call +#done+ if the wait is over
+  #
+  def initialize(exp_base: self.class.default_exp_base,
+                 interval: self.class.default_interval,
+                 max_attempts: self.class.default_max_attempts,
+                 max_interval: self.class.default_max_interval,
+                 &block)
+
+    @exp_base = exp_base
+    @interval = interval
+    @max_attempts = max_attempts
+    @max_interval = max_interval
+
+    @block = block
   end
 
-  # set the default wait interval
-  # @param [Fixnum] interval the interval in seconds
-  def self.default_interval=(interval)
-    @@default_interval = interval
+  class << self
+    # The default exp base
+    #
+    # @return [Numeric]
+    #
+    attr_accessor :default_exp_base
+
+    # The default interval
+    #
+    # @return [Numeric]
+    #
+    attr_accessor :default_interval
+
+    # The default max attempts
+    #
+    # @return [Numeric]
+    #
+    attr_accessor :default_max_attempts
+
+    # The default max interval
+    #
+    # @return [Numeric]
+    #
+    attr_accessor :default_max_interval
   end
 
-  # get the default exponential base
-  # @return [Float] the base for exponential backoff
-  def self.default_exp_base
-    @@default_exp_base ||= 1
+  self.default_exp_base = 1
+  self.default_interval = 5
+  self.default_max_attempts = 60
+  self.default_max_interval = nil
+
+  # @param interval [Numeric] Polling interval in seconds.
+  # @param max_attempts [Numeric] Number of attempts before timing out.
+  # @param exp_base [Numeric] Increases the interval by the power of attempts.
+  # @param max_interval [Numeric] Interval limit for exponential backoff.
+  #
+  # @yield Block to check if the wait is over.
+  # @yieldparam waiter [Waiting::Waiter] call +#done+ if the wait is over
+  #
+  def wait(exp_base: @exp_base,
+           interval: @interval,
+           max_attempts: @max_attempts,
+           max_interval: @max_interval,
+           &block)
+
+    Waiter.new(
+      exp_base: exp_base,
+      interval: interval,
+      max_attempts: max_attempts,
+      max_interval: max_interval
+    ).wait(&(block || @block))
   end
 
-  # set the default exponential base
-  # @param [Float] exp_base the base for exponential backoff
-  def self.default_exp_base=(exp_base)
-    @@default_exp_base = exp_base
+  # @see +#wait+
+  #
+  # @param interval [Numeric] Polling interval in seconds.
+  # @param max_attempts [Numeric] Number of attempts before timing out.
+  # @param exp_base [Numeric] Increases the interval by the power of attempts.
+  # @param max_interval [Numeric] Interval limit for exponential backoff.
+  #
+  # @yield Block to check if the wait is over.
+  # @yieldparam waiter [Waiting::Waiter] call +#done+ if the wait is over
+  #
+  def self.wait(exp_base: default_exp_base,
+                interval: default_interval,
+                max_attempts: default_max_attempts,
+                max_interval: default_max_interval,
+                &block)
+
+    new(exp_base: exp_base,
+        interval: interval,
+        max_attempts: max_attempts,
+        max_interval: max_interval,
+        &block).wait
   end
-
-  # get the default max attempts
-  # @return [Fixnum] the default max attempts
-  def self.default_max_attempts
-    @@default_max_attempts ||= 60
-  end
-
-  # set the default max attempts
-  # @param [Fixnum] max_attempts the default max attempts
-  def self.default_max_attempts=(max_attempts)
-    @@default_max_attempts = max_attempts
-  end
-
-  # get the default max interval
-  # @return [Fixnum] the default max interval
-  def self.default_max_interval
-    @@default_max_interval ||= nil
-  end
-
-  # set the default max interval
-  # @param [Fixnum] default max interval
-  def self.default_max_interval=(cap)
-    @@default_max_interval = cap
-  end
-
-  # wait for something, call #ok on the waiter to signal the wait is over
-  # @param [Hash] opts the options to wait with.
-  # @option opts [Fixnum] :interval polling interval in seconds for checking
-  # @option opts [Fixnum] :max_attempts number of attempts before failing
-  def self.wait(opts = {})
-    interval = opts.fetch(:interval) { default_interval }
-    exp_base = opts.fetch(:exp_base) { default_exp_base }
-    max_attempts = opts.fetch(:max_attempts) { default_max_attempts }
-    max_interval = opts.fetch(:max_interval) { default_max_interval }
-
-    waiter = Waiter.new
-
-    attempts = 0
-
-    loop do
-      if attempts >= max_attempts
-        fail(TimedOutError, "Timed out after #{interval * max_attempts}s")
-      end
-
-      waiter.attempts = attempts
-      waiter.exp_base = exp_base
-      waiter.interval = interval
-      waiter.max_attempts = max_attempts
-      waiter.max_interval = max_interval
-
-      yield(waiter)
-      break if waiter.done?
-
-      time = exp_base ** attempts * interval
-      unless max_interval.nil?
-        time = [time, max_interval].min
-      end
-
-      sleep time
-      attempts += 1
-    end
-  end
-
 end

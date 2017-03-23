@@ -25,36 +25,87 @@ Or install it yourself as:
 ```ruby
 require 'waiting'
 
-# optional
-Waiting.default_max_attempts = max_attempts # defaults to 60
-Waiting.default_interval = interval # seconds, defaults to 5
 
-# will poll every interval max_attempts times until something returns true
+# Optionally set defaults.
+#
+Waiting.exp_base = exp_base         # defaults to 1
+Waiting.interval = interval         # defaults to 5
+Waiting.max_attempts = max_attempts # defaults to 60
+Waiting.max_interval = max_interval # defaults to nil
+
+
+# Will poll every interval, max_attempts times until something is true
+#
 Waiting.wait do |waiter|
   waiter.done if something
 end
 
-# Specify the max_attempts and interval for each instance of the Waiting
-Waiting.wait(interval: interval, max_attempts: max_attempts) do |waiter|
+
+# Override the defaults here
+#
+Waiting.wait(exp_base: exp_base,
+             interval: interval,
+             max_attempts: max_attempts,
+             max_interval: max_interval
+            ) do |waiter|
   waiter.done if something
 end
 
-# Waiting can do exponential backoff
-Waiting.default_exp_base = exp_base # defaults to 1, for a constant wait interval
-Waiting.default_max_interval = max_interval # defaults to unbounded
 
-# Will wait for: 2,4,8,8...
-Waiting.wait(interval: 2, exp_base: 2, max_interval: 8) do |waiter|
+# Or make an instance of Waiting to pass around
+#
+waiting = Waiting.new(exp_base: exp_base,
+                      interval: interval,
+                      max_attempts: max_attempts,
+                      max_interval: max_interval
+                     ) do |waiter|
   waiter.done if something
 end
 
-# To get the parameters of the wait
-Waiting.wait do |waiter|
-  puts waiter.attempts
-  puts waiter.exp_base
-  puts waiter.interval
-  puts waiter.max_attempts
-  puts waiter.max_interval
+
+# And get it to wait
+#
+waiting.wait
+
+
+# Or overide any parameters here again
+#
+waiting.wait(exp_base: exp_base,
+             interval: interval,
+             max_attempts: max_attempts,
+             max_interval: max_interval
+            ) do |waiter|
+  waiter.done if something
+end
+
+
+# Access the wait parameters during the wait
+#
+waiting.wait do |waiter|
+  puts "attempts: #{waiter.attempts}"
+  puts "exp_base: #{waiter.exp_base}"
+  puts "interval: #{waiter.interval}"
+  puts "max_attempts: #{waiter.max_attempts}"
+  puts "max_interval: #{waiter.max_interval}"
+  waiter.done if something
+end
+# =>
+#   attempts: 0
+#   exp_base: 1
+#   interval: 5
+#   max_attempts: 60
+#   max_interval: nil
+
+
+# Leverage exp base for exponential back off
+#
+# Will wait for: 1, 2, 4, 8, 16, 16, 16...
+#
+waiting.wait(exp_base: 2,
+             interval: 1,
+             max_attempts: 16
+            ) do |waiter|
+  waiter.done if something
 end
 ```
 
